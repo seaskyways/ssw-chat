@@ -13,9 +13,20 @@ class Command(val commandTag: String, val data: String) {
     val jsonData: JSONObject by lazy { JSONObject(data) }
     
     override fun toString(): String {
-        return JSONObject(mapOf(
-                "command" to commandTag,
-                "data" to data
-        )).toString()
+        return JSONObject()
+                .run {
+                    put("command", commandTag)
+                    put("data", data)
+                    toString()
+                }
+    }
+    
+    fun toStringHeavy() : String{
+        return JSONObject()
+                .run {
+                    put("command", commandTag)
+                    put("data", jsonData)
+                    toString()
+                }
     }
 }

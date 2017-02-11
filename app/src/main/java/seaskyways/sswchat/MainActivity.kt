@@ -4,11 +4,12 @@ import android.os.Bundle
 import android.support.design.widget.*
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.*
+import android.widget.EditText
 import com.neovisionaries.ws.client.*
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.subjects.*
 import kotlinx.android.synthetic.main.content_main.*
 import org.jetbrains.anko.*
 import org.json.JSONObject
@@ -20,6 +21,7 @@ class MainActivity : AppCompatActivity() {
     val messageSubject = PublishSubject.create<String>()!!
     val commandObservable: Observable<Command>
         get() = messageSubject.subscribeOn(Schedulers.io()).map(::Command)
+    val nameSubject = BehaviorSubject.create<String>()!!
     
     val messagesAdapter = MessagesAdapter(messagesList)
     
@@ -33,8 +35,25 @@ class MainActivity : AppCompatActivity() {
         
         val fab = find<FloatingActionButton>(R.id.fab)
         fab.setOnClickListener { view ->
-            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                    .setAction("Action", null).show()
+            Snackbar.make(view, "Do you want to rename ?", Snackbar.LENGTH_LONG)
+                    .setAction("Change name", {
+                        alert("", title = "Change name") {
+                            var nameEditText: EditText? = null
+                            customView {
+                                verticalLayout {
+                                    nameEditText = editText {
+                                        hint = "Enter new name"
+                                    }
+                                }
+                            }
+                            okButton {
+                                val text = nameEditText?.text?.toString()
+                                if (!text.isNullOrBlank()) {
+                                    nameSubject.onNext(text)
+                                }
+                            }
+                        }.show()
+                    }).show()
         }
         
         bindRecycler()
@@ -130,6 +149,18 @@ class MainActivity : AppCompatActivity() {
                 }, {
                     
                 })
+        
+        nameSubject.subscribe { UserPref.name = it }
+        
+        nameSubject.observeOn(Schedulers.io())
+                .map {
+                    Command("save_name", """{"id" : ${UserPref.id}, "name" : $it}""")
+                }
+                .subscribe {
+                    websocket.sendText(it.toStringHeavy())
+                }
+        
+        
     }
     
     override fun onDestroy() {
